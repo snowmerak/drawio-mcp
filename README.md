@@ -39,3 +39,13 @@ Example client configuration:
 ```
 
 `create_diagram` does not write immediately. Use the returned `document_id` with `place_shape`, then call `save_diagram`. Existing compressed draw.io pages can be opened; saved output is normalized to editable, uncompressed `mxGraphModel` XML.
+
+## Generate the example through MCP
+
+After building the server, run the example MCP client:
+
+```sh
+go run ./cmd/drawio-example -server ./build/drawio-mcp.exe -output ./examples/generated-architecture.drawio
+```
+
+The example client uses `find_shapes`, `create_diagram`, `place_shape`, and `save_diagram` over a real stdio MCP connection.
