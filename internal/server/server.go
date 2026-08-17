@@ -25,6 +25,7 @@ func New(shapeCatalog *catalog.Catalog) *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{Name: "place_shape", Description: "Place a bundled shape on a page at the requested coordinates."}, service.placeShape)
 	mcp.AddTool(server, &mcp.Tool{Name: "inspect_diagram", Description: "Inspect the pages and placed vertices in an open draw.io document."}, service.inspectDiagram)
 	mcp.AddTool(server, &mcp.Tool{Name: "inspect_region", Description: "Inspect semantic nodes and relevant edges in a rectangular page region."}, service.inspectRegion)
+	mcp.AddTool(server, &mcp.Tool{Name: "route_edges", Description: "Automatically create orthogonal edges on directed grid lanes; same-direction edges may share lanes and opposite-direction edges may not."}, service.routeEdges)
 	return server
 }
 
@@ -165,6 +166,37 @@ func (s *Service) inspectRegion(_ context.Context, _ *mcp.CallToolRequest, input
 		IncludeExternalNodes: input.IncludeExternalNodes,
 		IncludeStyle:         input.IncludeStyle, IncludeMetadata: input.IncludeMetadata,
 		Limit: input.Limit,
+	})
+	return nil, result, err
+}
+
+type routeConnectionInput struct {
+	SourceID string `json:"source_id" jsonschema:"source vertex ID returned by inspect_diagram or inspect_region"`
+	TargetID string `json:"target_id" jsonschema:"target vertex ID returned by inspect_diagram or inspect_region"`
+	Label    string `json:"label,omitempty" jsonschema:"optional edge label"`
+}
+
+type routeEdgesInput struct {
+	DocumentID     string                 `json:"document_id" jsonschema:"ID returned by create_diagram or open_diagram"`
+	Page           string                 `json:"page,omitempty" jsonschema:"page ID or name; omit to use the first page"`
+	Connections    []routeConnectionInput `json:"connections" jsonschema:"directed source-to-target connections routed atomically"`
+	GridSize       float64                `json:"grid_size,omitempty" jsonschema:"lane grid size in model units; defaults to 20"`
+	Clearance      float64                `json:"clearance,omitempty" jsonschema:"shape clearance in model units; defaults to grid_size"`
+	BendPenalty    int                    `json:"bend_penalty,omitempty" jsonschema:"additional cost for each turn; defaults to 20"`
+	NewLaneCost    int                    `json:"new_lane_cost,omitempty" jsonschema:"cost for occupying an empty lane; defaults to 10"`
+	SharedLaneCost int                    `json:"shared_lane_cost,omitempty" jsonschema:"cost for a same-direction occupied lane; defaults to 3 and must not exceed new_lane_cost"`
+	MaxSearchNodes int                    `json:"max_search_nodes,omitempty" jsonschema:"A-star expansion cap per port pair; defaults to 150000"`
+}
+
+func (s *Service) routeEdges(_ context.Context, _ *mcp.CallToolRequest, input routeEdgesInput) (*mcp.CallToolResult, drawio.RouteEdgesResult, error) {
+	connections := make([]drawio.RouteConnection, len(input.Connections))
+	for i, connection := range input.Connections {
+		connections[i] = drawio.RouteConnection{SourceID: connection.SourceID, TargetID: connection.TargetID, Label: connection.Label}
+	}
+	result, err := s.documents.RouteEdges(input.DocumentID, input.Page, connections, drawio.RouteOptions{
+		GridSize: input.GridSize, Clearance: input.Clearance,
+		BendPenalty: input.BendPenalty, NewLaneCost: input.NewLaneCost,
+		SharedLaneCost: input.SharedLaneCost, MaxSearchNodes: input.MaxSearchNodes,
 	})
 	return nil, result, err
 }

@@ -33,8 +33,8 @@ func TestMCPToolsAreCallable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(tools.Tools) != 8 {
-		t.Fatalf("tool count = %d, want 8", len(tools.Tools))
+	if len(tools.Tools) != 9 {
+		t.Fatalf("tool count = %d, want 9", len(tools.Tools))
 	}
 
 	result, err := clientSession.CallTool(context.Background(), &mcp.CallToolParams{
@@ -77,6 +77,8 @@ func TestMCPToolsAreCallable(t *testing.T) {
 	if err != nil || placed.IsError {
 		t.Fatalf("place_shape: result=%+v err=%v", placed, err)
 	}
+	placedData := placed.StructuredContent.(map[string]any)
+	sourceCellID := placedData["cell"].(map[string]any)["id"].(string)
 
 	region, err := clientSession.CallTool(context.Background(), &mcp.CallToolParams{
 		Name: "inspect_region",
@@ -93,5 +95,38 @@ func TestMCPToolsAreCallable(t *testing.T) {
 	nodes := regionData["nodes"].([]any)
 	if len(nodes) != 1 || nodes[0].(map[string]any)["label"] != "Inside" {
 		t.Fatalf("unexpected inspect_region result: %#v", regionData)
+	}
+
+	second, err := clientSession.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "place_shape",
+		Arguments: map[string]any{
+			"document_id": documentID, "page": pageID, "shape_id": "default.rectangle",
+			"x": 400, "y": 80, "label": "Target",
+		},
+	})
+	if err != nil || second.IsError {
+		t.Fatalf("place second shape: result=%+v err=%v", second, err)
+	}
+	secondData := second.StructuredContent.(map[string]any)
+	targetCellID := secondData["cell"].(map[string]any)["id"].(string)
+
+	routed, err := clientSession.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "route_edges",
+		Arguments: map[string]any{
+			"document_id": documentID, "page": pageID, "grid_size": 20,
+			"connections": []map[string]any{
+				{"source_id": sourceCellID, "target_id": targetCellID, "label": "one"},
+				{"source_id": sourceCellID, "target_id": targetCellID, "label": "two"},
+			},
+		},
+	})
+	if err != nil || routed.IsError {
+		t.Fatalf("route_edges: result=%+v err=%v", routed, err)
+	}
+	routedData := routed.StructuredContent.(map[string]any)
+	edges := routedData["edges"].([]any)
+	sharedLanes := routedData["shared_lanes"].(float64)
+	if len(edges) != 2 || sharedLanes < 1 {
+		t.Fatalf("unexpected route_edges result: %#v", routedData)
 	}
 }

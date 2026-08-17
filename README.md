@@ -14,6 +14,7 @@ The server is self-contained: the libraries in `template/*.xml` are compiled int
 - `place_shape` — place a shape using its catalog ID and default or explicit dimensions
 - `inspect_diagram` — inspect pages and vertex cells
 - `inspect_region` — inspect nodes and relevant edges inside a page rectangle
+- `route_edges` — automatically route directed orthogonal edges on shareable grid lanes
 
 Bundled IDs are stable and namespaced, for example `default.rectangle`, `saturday.golang`, and `cloudflare.wrangler`.
 
@@ -61,6 +62,26 @@ Example client configuration:
 ```
 
 `match` may be `intersects` or `contained`. `edge_mode` may be `none`, `connected`, or `intersects`. Embedded image payloads are omitted even when styles are requested.
+
+`route_edges` routes a batch atomically on directed orthogonal grid lanes:
+
+```json
+{
+  "document_id": "doc-a41d93b75e420fa1",
+  "page": "Architecture",
+  "connections": [
+    {"source_id": "api-1", "target_id": "db-1", "label": "query"},
+    {"source_id": "api-2", "target_id": "db-2", "label": "query"}
+  ],
+  "grid_size": 20,
+  "clearance": 20,
+  "bend_penalty": 20,
+  "new_lane_cost": 10,
+  "shared_lane_cost": 3
+}
+```
+
+Each empty lane can be occupied once per direction. Additional edges may share it only in that same direction; an edge traveling in the opposite direction must find another lane. Routed lane IDs are stored on the edge so later calls restore their occupancy. If any connection cannot be routed, no edge from the batch is added.
 
 ## Generate the example through MCP
 

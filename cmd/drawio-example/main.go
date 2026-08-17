@@ -33,6 +33,22 @@ type regionResult struct {
 	Nodes []struct {
 		ID string `json:"id"`
 	} `json:"nodes"`
+	Edges []struct {
+		ID string `json:"id"`
+	} `json:"edges"`
+}
+
+type placeResult struct {
+	Cell struct {
+		ID string `json:"id"`
+	} `json:"cell"`
+}
+
+type routeResult struct {
+	SharedLanes int `json:"shared_lanes"`
+	Edges       []struct {
+		ID string `json:"id"`
+	} `json:"edges"`
 }
 
 type placement struct {
@@ -85,8 +101,10 @@ func main() {
 		{Query: "default.cylinder", Label: "Database", X: 850, Y: 165, Width: 100, Height: 120},
 	}
 
-	for _, item := range placements {
+	cellIDs := make([]string, len(placements))
+	for i, item := range placements {
 		shapeID := findExactShape(ctx, session, item.Query)
+		var placed placeResult
 		call(ctx, session, "place_shape", map[string]any{
 			"document_id": document.DocumentID,
 			"page":        document.Pages[0].ID,
@@ -96,7 +114,28 @@ func main() {
 			"width":       item.Width,
 			"height":      item.Height,
 			"label":       item.Label,
-		}, nil)
+		}, &placed)
+		cellIDs[i] = placed.Cell.ID
+	}
+
+	connections := []map[string]any{
+		{"source_id": cellIDs[1], "target_id": cellIDs[2]},
+		{"source_id": cellIDs[2], "target_id": cellIDs[3]},
+		{"source_id": cellIDs[3], "target_id": cellIDs[4]},
+		{"source_id": cellIDs[4], "target_id": cellIDs[5]},
+		{"source_id": cellIDs[1], "target_id": cellIDs[4], "label": "request"},
+		{"source_id": cellIDs[2], "target_id": cellIDs[5], "label": "forward"},
+	}
+	var routed routeResult
+	call(ctx, session, "route_edges", map[string]any{
+		"document_id": document.DocumentID,
+		"page":        document.Pages[0].ID,
+		"connections": connections,
+		"grid_size":   20,
+		"clearance":   20,
+	}, &routed)
+	if len(routed.Edges) != len(connections) || routed.SharedLanes == 0 {
+		log.Fatalf("route_edges did not create shared lanes: %+v", routed)
 	}
 
 	call(ctx, session, "save_diagram", map[string]any{
@@ -110,12 +149,12 @@ func main() {
 	call(ctx, session, "inspect_region", map[string]any{
 		"document_id": reopened.DocumentID,
 		"x":           0, "y": 0, "width": 1000, "height": 400,
-		"match": "contained", "edge_mode": "none",
+		"match": "contained", "edge_mode": "connected",
 	}, &inspected)
-	if len(inspected.Nodes) != len(placements) {
+	if len(inspected.Nodes) != len(placements) || len(inspected.Edges) != len(connections) {
 		log.Fatalf("inspect_region returned an unexpected document: %+v", inspected)
 	}
-	fmt.Printf("%s (%d shapes)\n", absoluteOutput, len(inspected.Nodes))
+	fmt.Printf("%s (%d shapes, %d routed edges, %d shared lanes)\n", absoluteOutput, len(inspected.Nodes), len(inspected.Edges), routed.SharedLanes)
 }
 
 func findExactShape(ctx context.Context, session *mcp.ClientSession, id string) string {

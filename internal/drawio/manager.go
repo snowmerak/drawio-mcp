@@ -79,6 +79,16 @@ func (m *Manager) InspectRegion(documentID, pageRef string, region Bounds, optio
 	return doc.InspectRegion(pageRef, region, options)
 }
 
+func (m *Manager) RouteEdges(documentID, pageRef string, connections []RouteConnection, options RouteOptions) (RouteEdgesResult, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	doc, err := m.document(documentID)
+	if err != nil {
+		return RouteEdgesResult{}, err
+	}
+	return doc.RouteEdges(pageRef, connections, options)
+}
+
 func (m *Manager) document(id string) (*Document, error) {
 	doc, ok := m.docs[id]
 	if !ok {
