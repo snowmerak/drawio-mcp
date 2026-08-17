@@ -13,6 +13,7 @@ The server is self-contained: the libraries in `template/*.xml` are compiled int
 - `save_diagram` — save an open document
 - `place_shape` — place a shape using its catalog ID and default or explicit dimensions
 - `inspect_diagram` — inspect pages and vertex cells
+- `inspect_region` — inspect nodes and relevant edges inside a page rectangle
 
 Bundled IDs are stable and namespaced, for example `default.rectangle`, `saturday.golang`, and `cloudflare.wrangler`.
 
@@ -39,6 +40,27 @@ Example client configuration:
 ```
 
 `create_diagram` does not write immediately. Use the returned `document_id` with `place_shape`, then call `save_diagram`. Existing compressed draw.io pages can be opened; saved output is normalized to editable, uncompressed `mxGraphModel` XML.
+
+`inspect_region` accepts a page rectangle in draw.io model coordinates:
+
+```json
+{
+  "document_id": "doc-a41d93b75e420fa1",
+  "page": "Architecture",
+  "x": 100,
+  "y": 80,
+  "width": 600,
+  "height": 400,
+  "match": "intersects",
+  "edge_mode": "connected",
+  "include_external_nodes": true,
+  "include_style": false,
+  "include_metadata": false,
+  "limit": 200
+}
+```
+
+`match` may be `intersects` or `contained`. `edge_mode` may be `none`, `connected`, or `intersects`. Embedded image payloads are omitted even when styles are requested.
 
 ## Generate the example through MCP
 

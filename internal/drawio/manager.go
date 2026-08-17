@@ -69,6 +69,16 @@ func (m *Manager) Inspect(documentID string) (Summary, error) {
 	return doc.Inspect(), nil
 }
 
+func (m *Manager) InspectRegion(documentID, pageRef string, region Bounds, options RegionOptions) (RegionResult, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	doc, err := m.document(documentID)
+	if err != nil {
+		return RegionResult{}, err
+	}
+	return doc.InspectRegion(pageRef, region, options)
+}
+
 func (m *Manager) document(id string) (*Document, error) {
 	doc, ok := m.docs[id]
 	if !ok {

@@ -29,6 +29,12 @@ type documentResult struct {
 	} `json:"pages"`
 }
 
+type regionResult struct {
+	Nodes []struct {
+		ID string `json:"id"`
+	} `json:"nodes"`
+}
+
 type placement struct {
 	Query  string
 	Label  string
@@ -100,12 +106,16 @@ func main() {
 
 	var reopened documentResult
 	call(ctx, session, "open_diagram", map[string]any{"path": absoluteOutput}, &reopened)
-	var inspected documentResult
-	call(ctx, session, "inspect_diagram", map[string]any{"document_id": reopened.DocumentID}, &inspected)
-	if len(inspected.Pages) != 1 || len(inspected.Pages[0].Cells) != len(placements) {
-		log.Fatalf("inspect_diagram returned an unexpected document: %+v", inspected)
+	var inspected regionResult
+	call(ctx, session, "inspect_region", map[string]any{
+		"document_id": reopened.DocumentID,
+		"x":           0, "y": 0, "width": 1000, "height": 400,
+		"match": "contained", "edge_mode": "none",
+	}, &inspected)
+	if len(inspected.Nodes) != len(placements) {
+		log.Fatalf("inspect_region returned an unexpected document: %+v", inspected)
 	}
-	fmt.Printf("%s (%d shapes)\n", absoluteOutput, len(inspected.Pages[0].Cells))
+	fmt.Printf("%s (%d shapes)\n", absoluteOutput, len(inspected.Nodes))
 }
 
 func findExactShape(ctx context.Context, session *mcp.ClientSession, id string) string {

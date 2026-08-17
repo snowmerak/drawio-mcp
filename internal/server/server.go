@@ -24,6 +24,7 @@ func New(shapeCatalog *catalog.Catalog) *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{Name: "save_diagram", Description: "Save an open draw.io document. The path may be omitted when the document already has one."}, service.saveDiagram)
 	mcp.AddTool(server, &mcp.Tool{Name: "place_shape", Description: "Place a bundled shape on a page at the requested coordinates."}, service.placeShape)
 	mcp.AddTool(server, &mcp.Tool{Name: "inspect_diagram", Description: "Inspect the pages and placed vertices in an open draw.io document."}, service.inspectDiagram)
+	mcp.AddTool(server, &mcp.Tool{Name: "inspect_region", Description: "Inspect semantic nodes and relevant edges in a rectangular page region."}, service.inspectRegion)
 	return server
 }
 
@@ -138,5 +139,32 @@ type inspectDiagramInput struct {
 
 func (s *Service) inspectDiagram(_ context.Context, _ *mcp.CallToolRequest, input inspectDiagramInput) (*mcp.CallToolResult, drawio.Summary, error) {
 	result, err := s.documents.Inspect(input.DocumentID)
+	return nil, result, err
+}
+
+type inspectRegionInput struct {
+	DocumentID           string  `json:"document_id" jsonschema:"ID returned by create_diagram or open_diagram"`
+	Page                 string  `json:"page,omitempty" jsonschema:"page ID or name; omit to use the first page"`
+	X                    float64 `json:"x" jsonschema:"left edge in draw.io model coordinates"`
+	Y                    float64 `json:"y" jsonschema:"top edge in draw.io model coordinates"`
+	Width                float64 `json:"width" jsonschema:"positive region width in draw.io model coordinates"`
+	Height               float64 `json:"height" jsonschema:"positive region height in draw.io model coordinates"`
+	Match                string  `json:"match,omitempty" jsonschema:"node match mode: intersects or contained; defaults to intersects"`
+	EdgeMode             string  `json:"edge_mode,omitempty" jsonschema:"edge mode: none, connected, or intersects; defaults to connected"`
+	IncludeExternalNodes bool    `json:"include_external_nodes,omitempty" jsonschema:"include summarized endpoints outside the region for returned edges"`
+	IncludeStyle         bool    `json:"include_style,omitempty" jsonschema:"include parsed styles with embedded image payloads omitted"`
+	IncludeMetadata      bool    `json:"include_metadata,omitempty" jsonschema:"include custom mxCell and object attributes"`
+	Limit                int     `json:"limit,omitempty" jsonschema:"maximum in-region nodes; defaults to 200 and is capped at 2000"`
+}
+
+func (s *Service) inspectRegion(_ context.Context, _ *mcp.CallToolRequest, input inspectRegionInput) (*mcp.CallToolResult, drawio.RegionResult, error) {
+	result, err := s.documents.InspectRegion(input.DocumentID, input.Page, drawio.Bounds{
+		X: input.X, Y: input.Y, Width: input.Width, Height: input.Height,
+	}, drawio.RegionOptions{
+		Match: input.Match, EdgeMode: input.EdgeMode,
+		IncludeExternalNodes: input.IncludeExternalNodes,
+		IncludeStyle:         input.IncludeStyle, IncludeMetadata: input.IncludeMetadata,
+		Limit: input.Limit,
+	})
 	return nil, result, err
 }
