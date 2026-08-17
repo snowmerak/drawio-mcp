@@ -22,9 +22,13 @@ func New(shapeCatalog *catalog.Catalog) *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{Name: "create_diagram", Description: "Create a new in-memory draw.io document with one page."}, service.createDiagram)
 	mcp.AddTool(server, &mcp.Tool{Name: "open_diagram", Description: "Open an existing compressed or uncompressed .drawio file for editing."}, service.openDiagram)
 	mcp.AddTool(server, &mcp.Tool{Name: "save_diagram", Description: "Save an open draw.io document. The path may be omitted when the document already has one."}, service.saveDiagram)
+	mcp.AddTool(server, &mcp.Tool{Name: "close_diagram", Description: "Release an open in-memory draw.io document. Unsaved changes require force=true."}, service.closeDiagram)
 	mcp.AddTool(server, &mcp.Tool{Name: "place_shape", Description: "Place a bundled shape on a page at the requested coordinates."}, service.placeShape)
+	mcp.AddTool(server, &mcp.Tool{Name: "move_shape", Description: "Move a shape to an absolute page coordinate."}, service.moveShape)
+	mcp.AddTool(server, &mcp.Tool{Name: "set_shape_label", Description: "Change or clear a shape label."}, service.setShapeLabel)
+	mcp.AddTool(server, &mcp.Tool{Name: "delete_shape", Description: "Delete a shape, its descendants, and connected edges."}, service.deleteShape)
 	mcp.AddTool(server, &mcp.Tool{Name: "inspect_diagram", Description: "Inspect the pages and placed vertices in an open draw.io document."}, service.inspectDiagram)
-	mcp.AddTool(server, &mcp.Tool{Name: "inspect_region", Description: "Inspect semantic nodes and relevant edges in a rectangular page region."}, service.inspectRegion)
+	mcp.AddTool(server, &mcp.Tool{Name: "inspect_region", Description: "Return shapes in a rectangular page region and optionally their connected or crossing edges."}, service.inspectRegion)
 	mcp.AddTool(server, &mcp.Tool{Name: "route_edges", Description: "Automatically create orthogonal edges on directed grid lanes; same-direction edges may share lanes and opposite-direction edges may not."}, service.routeEdges)
 	return server
 }
@@ -108,6 +112,16 @@ func (s *Service) saveDiagram(_ context.Context, _ *mcp.CallToolRequest, input s
 	return nil, result, err
 }
 
+type closeDiagramInput struct {
+	DocumentID string `json:"document_id" jsonschema:"ID returned by create_diagram or open_diagram"`
+	Force      bool   `json:"force,omitempty" jsonschema:"discard unsaved changes; defaults to false"`
+}
+
+func (s *Service) closeDiagram(_ context.Context, _ *mcp.CallToolRequest, input closeDiagramInput) (*mcp.CallToolResult, drawio.CloseResult, error) {
+	result, err := s.documents.Close(input.DocumentID, input.Force)
+	return nil, result, err
+}
+
 type placeShapeInput struct {
 	DocumentID string  `json:"document_id" jsonschema:"ID returned by create_diagram or open_diagram"`
 	Page       string  `json:"page,omitempty" jsonschema:"page ID or name; omit to use the first page"`
@@ -132,6 +146,42 @@ func (s *Service) placeShape(_ context.Context, _ *mcp.CallToolRequest, input pl
 	}
 	cell, err := s.documents.Place(input.DocumentID, input.Page, shape, input.X, input.Y, input.Width, input.Height, input.Label)
 	return nil, placeShapeOutput{DocumentID: input.DocumentID, Page: input.Page, Cell: cell}, err
+}
+
+type moveShapeInput struct {
+	DocumentID string  `json:"document_id" jsonschema:"ID returned by create_diagram or open_diagram"`
+	Page       string  `json:"page,omitempty" jsonschema:"page ID or name; omit to use the first page"`
+	ShapeID    string  `json:"shape_id" jsonschema:"vertex ID returned by place_shape, inspect_diagram, or inspect_region"`
+	X          float64 `json:"x" jsonschema:"new left position in absolute page coordinates"`
+	Y          float64 `json:"y" jsonschema:"new top position in absolute page coordinates"`
+}
+
+func (s *Service) moveShape(_ context.Context, _ *mcp.CallToolRequest, input moveShapeInput) (*mcp.CallToolResult, drawio.ShapeEditResult, error) {
+	result, err := s.documents.MoveShape(input.DocumentID, input.Page, input.ShapeID, input.X, input.Y)
+	return nil, result, err
+}
+
+type setShapeLabelInput struct {
+	DocumentID string `json:"document_id" jsonschema:"ID returned by create_diagram or open_diagram"`
+	Page       string `json:"page,omitempty" jsonschema:"page ID or name; omit to use the first page"`
+	ShapeID    string `json:"shape_id" jsonschema:"vertex ID returned by place_shape, inspect_diagram, or inspect_region"`
+	Label      string `json:"label" jsonschema:"new label; use an empty string to clear it"`
+}
+
+func (s *Service) setShapeLabel(_ context.Context, _ *mcp.CallToolRequest, input setShapeLabelInput) (*mcp.CallToolResult, drawio.ShapeEditResult, error) {
+	result, err := s.documents.SetShapeLabel(input.DocumentID, input.Page, input.ShapeID, input.Label)
+	return nil, result, err
+}
+
+type deleteShapeInput struct {
+	DocumentID string `json:"document_id" jsonschema:"ID returned by create_diagram or open_diagram"`
+	Page       string `json:"page,omitempty" jsonschema:"page ID or name; omit to use the first page"`
+	ShapeID    string `json:"shape_id" jsonschema:"vertex ID returned by place_shape, inspect_diagram, or inspect_region"`
+}
+
+func (s *Service) deleteShape(_ context.Context, _ *mcp.CallToolRequest, input deleteShapeInput) (*mcp.CallToolResult, drawio.DeleteShapeResult, error) {
+	result, err := s.documents.DeleteShape(input.DocumentID, input.Page, input.ShapeID)
+	return nil, result, err
 }
 
 type inspectDiagramInput struct {

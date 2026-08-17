@@ -13,6 +13,14 @@ type Manager struct {
 	docs map[string]*Document
 }
 
+// CloseResult confirms that an in-memory document was released.
+type CloseResult struct {
+	DocumentID       string `json:"document_id"`
+	Path             string `json:"path,omitempty"`
+	Closed           bool   `json:"closed"`
+	DiscardedChanges bool   `json:"discarded_changes"`
+}
+
 func NewManager() *Manager {
 	return &Manager{docs: make(map[string]*Document)}
 }
@@ -49,6 +57,28 @@ func (m *Manager) Save(documentID, path string) (Summary, error) {
 	return doc.Inspect(), nil
 }
 
+// Close releases a document from the manager. Modified documents require an
+// explicit force flag so an accidental close cannot silently discard edits.
+func (m *Manager) Close(documentID string, force bool) (CloseResult, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	doc, err := m.document(documentID)
+	if err != nil {
+		return CloseResult{}, err
+	}
+	if doc.Modified && !force {
+		return CloseResult{}, fmt.Errorf("document %q has unsaved changes; save it or set force to true", documentID)
+	}
+	result := CloseResult{
+		DocumentID:       doc.ID,
+		Path:             doc.Path,
+		Closed:           true,
+		DiscardedChanges: doc.Modified,
+	}
+	delete(m.docs, documentID)
+	return result, nil
+}
+
 func (m *Manager) Place(documentID, pageRef string, shape catalog.Shape, x, y, width, height float64, label string) (CellSummary, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -57,6 +87,36 @@ func (m *Manager) Place(documentID, pageRef string, shape catalog.Shape, x, y, w
 		return CellSummary{}, err
 	}
 	return doc.Place(pageRef, shape, x, y, width, height, label)
+}
+
+func (m *Manager) MoveShape(documentID, pageRef, shapeID string, x, y float64) (ShapeEditResult, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	doc, err := m.document(documentID)
+	if err != nil {
+		return ShapeEditResult{}, err
+	}
+	return doc.MoveShape(pageRef, shapeID, x, y)
+}
+
+func (m *Manager) SetShapeLabel(documentID, pageRef, shapeID, label string) (ShapeEditResult, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	doc, err := m.document(documentID)
+	if err != nil {
+		return ShapeEditResult{}, err
+	}
+	return doc.SetShapeLabel(pageRef, shapeID, label)
+}
+
+func (m *Manager) DeleteShape(documentID, pageRef, shapeID string) (DeleteShapeResult, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	doc, err := m.document(documentID)
+	if err != nil {
+		return DeleteShapeResult{}, err
+	}
+	return doc.DeleteShape(pageRef, shapeID)
 }
 
 func (m *Manager) Inspect(documentID string) (Summary, error) {

@@ -33,8 +33,8 @@ func TestMCPToolsAreCallable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(tools.Tools) != 9 {
-		t.Fatalf("tool count = %d, want 9", len(tools.Tools))
+	if len(tools.Tools) != 13 {
+		t.Fatalf("tool count = %d, want 13", len(tools.Tools))
 	}
 
 	result, err := clientSession.CallTool(context.Background(), &mcp.CallToolParams{
@@ -110,6 +110,22 @@ func TestMCPToolsAreCallable(t *testing.T) {
 	secondData := second.StructuredContent.(map[string]any)
 	targetCellID := secondData["cell"].(map[string]any)["id"].(string)
 
+	for name, arguments := range map[string]map[string]any{
+		"move_shape": {
+			"document_id": documentID, "page": pageID, "shape_id": targetCellID,
+			"x": 420, "y": 100,
+		},
+		"set_shape_label": {
+			"document_id": documentID, "page": pageID, "shape_id": targetCellID,
+			"label": "Renamed Target",
+		},
+	} {
+		edited, err := clientSession.CallTool(context.Background(), &mcp.CallToolParams{Name: name, Arguments: arguments})
+		if err != nil || edited.IsError {
+			t.Fatalf("%s: result=%+v err=%v", name, edited, err)
+		}
+	}
+
 	routed, err := clientSession.CallTool(context.Background(), &mcp.CallToolParams{
 		Name: "route_edges",
 		Arguments: map[string]any{
@@ -128,5 +144,35 @@ func TestMCPToolsAreCallable(t *testing.T) {
 	sharedLanes := routedData["shared_lanes"].(float64)
 	if len(edges) != 2 || sharedLanes < 1 {
 		t.Fatalf("unexpected route_edges result: %#v", routedData)
+	}
+
+	deleted, err := clientSession.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "delete_shape",
+		Arguments: map[string]any{
+			"document_id": documentID, "page": pageID, "shape_id": targetCellID,
+		},
+	})
+	if err != nil || deleted.IsError {
+		t.Fatalf("delete_shape: result=%+v err=%v", deleted, err)
+	}
+	deletedData := deleted.StructuredContent.(map[string]any)
+	if ids := deletedData["deleted_edge_ids"].([]any); len(ids) != 2 {
+		t.Fatalf("delete_shape did not remove connected edges: %#v", deletedData)
+	}
+
+	rejectedClose, err := clientSession.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "close_diagram", Arguments: map[string]any{"document_id": documentID},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !rejectedClose.IsError {
+		t.Fatal("close_diagram accepted unsaved changes without force")
+	}
+	closed, err := clientSession.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "close_diagram", Arguments: map[string]any{"document_id": documentID, "force": true},
+	})
+	if err != nil || closed.IsError {
+		t.Fatalf("close_diagram: result=%+v err=%v", closed, err)
 	}
 }

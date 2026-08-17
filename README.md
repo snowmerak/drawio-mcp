@@ -11,9 +11,13 @@ The server is self-contained: the libraries in `template/*.xml` are compiled int
 - `create_diagram` - create an in-memory draw.io document
 - `open_diagram` - open compressed or uncompressed draw.io XML
 - `save_diagram` - save an open document
+- `close_diagram` - release an open document; unsaved changes require `force: true`
 - `place_shape` - place a shape using its catalog ID and default or explicit dimensions
+- `move_shape` - move a shape using absolute page coordinates
+- `set_shape_label` - change or clear a shape label
+- `delete_shape` - delete a shape, its descendants, and connected edges
 - `inspect_diagram` - inspect pages and vertex cells
-- `inspect_region` - inspect nodes and relevant edges inside a page rectangle
+- `inspect_region` - return shapes inside a page rectangle and optionally connected or crossing edges
 - `route_edges` - automatically route directed orthogonal edges on shareable grid lanes
 
 Bundled IDs are stable and namespaced, for example `default.rectangle`, `saturday.golang`, and `cloudflare.wrangler`.
@@ -104,6 +108,8 @@ For local development, clients that support a working-directory setting can run 
 
 `create_diagram` does not write immediately. Use the returned `document_id` with `place_shape`, then call `save_diagram`. Existing compressed draw.io pages can be opened; saved output is normalized to editable, uncompressed `mxGraphModel` XML.
 
+`close_diagram` removes a document from the server's in-memory document manager. It rejects modified documents unless `force` is true. `move_shape` uses absolute page coordinates, including for nested shapes. `delete_shape` also removes descendant shapes and connected edges so it cannot leave dangling edge endpoints.
+
 `inspect_region` accepts a page rectangle in draw.io model coordinates:
 
 ```json
@@ -144,6 +150,8 @@ For local development, clients that support a working-directory setting can run 
 ```
 
 Each empty lane can be occupied once per direction. Additional edges may share it only in that same direction; an edge traveling in the opposite direction must find another lane. Routed lane IDs are stored on the edge so later calls restore their occupancy. If any connection cannot be routed, no edge from the batch is added.
+
+Label-aware routing is a planned improvement. The current router avoids shape bounds but does not reserve the visual area occupied by edge labels, so a shared lane can pass through another edge's label. A future version should reserve label-sized lane intervals in both directions, prefer an adjacent lane for other edges, and offset each label from its own polyline.
 
 ## Generate the example through MCP
 
