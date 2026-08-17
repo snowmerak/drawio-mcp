@@ -62,15 +62,17 @@ type Problem struct {
 }
 
 type Route struct {
-	ID         string   `json:"id"`
-	SourceID   string   `json:"source_id"`
-	TargetID   string   `json:"target_id"`
-	SourceSide Side     `json:"source_side"`
-	TargetSide Side     `json:"target_side"`
-	Points     []Point  `json:"points"`
-	LaneIDs    []string `json:"lanes"`
-	SharedWith []string `json:"shared_with,omitempty"`
-	Cost       int      `json:"cost"`
+	ID           string   `json:"id"`
+	SourceID     string   `json:"source_id"`
+	TargetID     string   `json:"target_id"`
+	SourceSide   Side     `json:"source_side"`
+	TargetSide   Side     `json:"target_side"`
+	SourceAnchor Point    `json:"source_anchor"`
+	TargetAnchor Point    `json:"target_anchor"`
+	Points       []Point  `json:"points"`
+	LaneIDs      []string `json:"lanes"`
+	SharedWith   []string `json:"shared_with,omitempty"`
+	Cost         int      `json:"cost"`
 }
 
 type Result struct {
@@ -198,10 +200,13 @@ func Solve(problem Problem) (Result, error) {
 		if err != nil {
 			return Result{}, fmt.Errorf("route %q (%s -> %s): %w", request.ID, request.SourceID, request.TargetID, err)
 		}
+		modelPoints := gridPointsToModel(compressPoints(best.points), options.gridSize)
 		route := Route{
 			ID: request.ID, SourceID: request.SourceID, TargetID: request.TargetID,
 			SourceSide: best.sourceSide, TargetSide: best.targetSide,
-			Points: gridPointsToModel(compressPoints(best.points), options.gridSize), Cost: best.cost,
+			SourceAnchor: anchorForPort(modelPoints[0], request.SourceRect, best.sourceSide),
+			TargetAnchor: anchorForPort(modelPoints[len(modelPoints)-1], request.TargetRect, best.targetSide),
+			Points:       modelPoints, Cost: best.cost,
 		}
 		for i := 1; i < len(best.points); i++ {
 			key, orientation := makeLane(best.points[i-1], best.points[i])
@@ -595,6 +600,27 @@ func gridPointsToModel(points []gridPoint, gridSize float64) []Point {
 		result[i] = Point{X: float64(point.X) * gridSize, Y: float64(point.Y) * gridSize}
 	}
 	return result
+}
+
+// anchorForPort returns a normalized mxGraph connection point on the selected
+// shape side, aligned with the lane instead of forced to the side center.
+func anchorForPort(port Point, rect Rect, side Side) Point {
+	switch side {
+	case East:
+		return Point{X: 1, Y: clampUnit((port.Y - rect.Y) / rect.Height)}
+	case West:
+		return Point{X: 0, Y: clampUnit((port.Y - rect.Y) / rect.Height)}
+	case North:
+		return Point{X: clampUnit((port.X - rect.X) / rect.Width), Y: 0}
+	case South:
+		return Point{X: clampUnit((port.X - rect.X) / rect.Width), Y: 1}
+	default:
+		return Point{X: 0.5, Y: 0.5}
+	}
+}
+
+func clampUnit(value float64) float64 {
+	return math.Max(0, math.Min(1, value))
 }
 
 func inflate(rect Rect, amount float64) Rect {

@@ -26,16 +26,18 @@ type RouteOptions struct {
 
 // RoutedEdge describes a created draw.io edge and its occupied lanes.
 type RoutedEdge struct {
-	ID         string   `json:"id"`
-	SourceID   string   `json:"source_id"`
-	TargetID   string   `json:"target_id"`
-	Label      string   `json:"label,omitempty"`
-	SourceSide string   `json:"source_side"`
-	TargetSide string   `json:"target_side"`
-	Points     []Point  `json:"points"`
-	Lanes      []string `json:"lanes"`
-	SharedWith []string `json:"shared_with,omitempty"`
-	Cost       int      `json:"cost"`
+	ID           string   `json:"id"`
+	SourceID     string   `json:"source_id"`
+	TargetID     string   `json:"target_id"`
+	Label        string   `json:"label,omitempty"`
+	SourceSide   string   `json:"source_side"`
+	TargetSide   string   `json:"target_side"`
+	SourceAnchor Point    `json:"source_anchor"`
+	TargetAnchor Point    `json:"target_anchor"`
+	Points       []Point  `json:"points"`
+	Lanes        []string `json:"lanes"`
+	SharedWith   []string `json:"shared_with,omitempty"`
+	Cost         int      `json:"cost"`
 }
 
 // RouteEdgesResult contains all edges created by one atomic routing call.
@@ -157,7 +159,7 @@ func (d *Document) RouteEdges(pageRef string, connections []RouteConnection, opt
 		Edges: make([]RoutedEdge, 0, len(routed.Routes)), SharedLanes: routed.SharedLanes,
 	}
 	for _, route := range routed.Routes {
-		style := routedEdgeStyle(route.SourceSide, route.TargetSide)
+		style := routedEdgeStyle(route.SourceAnchor, route.TargetAnchor)
 		cell := element("mxCell",
 			"id", route.ID, "value", labels[route.ID], "style", style,
 			"edge", "1", "parent", "1", "source", route.SourceID, "target", route.TargetID,
@@ -180,7 +182,9 @@ func (d *Document) RouteEdges(pageRef string, connections []RouteConnection, opt
 		result.Edges = append(result.Edges, RoutedEdge{
 			ID: route.ID, SourceID: route.SourceID, TargetID: route.TargetID, Label: labels[route.ID],
 			SourceSide: string(route.SourceSide), TargetSide: string(route.TargetSide),
-			Points: outputPoints, Lanes: route.LaneIDs, SharedWith: route.SharedWith, Cost: route.Cost,
+			SourceAnchor: Point{X: route.SourceAnchor.X, Y: route.SourceAnchor.Y},
+			TargetAnchor: Point{X: route.TargetAnchor.X, Y: route.TargetAnchor.Y},
+			Points:       outputPoints, Lanes: route.LaneIDs, SharedWith: route.SharedWith, Cost: route.Cost,
 		})
 	}
 	d.Modified = true
@@ -191,27 +195,10 @@ func routerRect(bounds Bounds) router.Rect {
 	return router.Rect{X: bounds.X, Y: bounds.Y, Width: bounds.Width, Height: bounds.Height}
 }
 
-func routedEdgeStyle(source, target router.Side) string {
-	exitX, exitY := sideCoordinates(source)
-	entryX, entryY := sideCoordinates(target)
+func routedEdgeStyle(source, target router.Point) string {
 	return "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" +
-		"exitX=" + exitX + ";exitY=" + exitY + ";exitDx=0;exitDy=0;" +
-		"entryX=" + entryX + ";entryY=" + entryY + ";entryDx=0;entryDy=0;"
-}
-
-func sideCoordinates(side router.Side) (string, string) {
-	switch side {
-	case router.North:
-		return "0.5", "0"
-	case router.East:
-		return "1", "0.5"
-	case router.South:
-		return "0.5", "1"
-	case router.West:
-		return "0", "0.5"
-	default:
-		return "0.5", "0.5"
-	}
+		"exitX=" + formatFloat(source.X) + ";exitY=" + formatFloat(source.Y) + ";exitDx=0;exitDy=0;" +
+		"entryX=" + formatFloat(target.X) + ";entryY=" + formatFloat(target.Y) + ";entryDx=0;entryDy=0;"
 }
 
 func splitNonEmpty(value, separator string) []string {

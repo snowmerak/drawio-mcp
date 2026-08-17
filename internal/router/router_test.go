@@ -25,6 +25,7 @@ func TestSameDirectionRoutesShareLanes(t *testing.T) {
 	if !contains(result.Routes[0].SharedWith, "edge-2") || !contains(result.Routes[1].SharedWith, "edge-1") {
 		t.Fatalf("shared route metadata is incomplete: %+v", result.Routes)
 	}
+	assertLaneAlignedAnchors(t, result.Routes[0], source, target)
 }
 
 func TestOppositeDirectionCannotReserveSameLane(t *testing.T) {
@@ -112,6 +113,36 @@ func contains(values []string, wanted string) bool {
 		}
 	}
 	return false
+}
+
+func assertLaneAlignedAnchors(t *testing.T, route Route, source, target Rect) {
+	t.Helper()
+	if len(route.Points) < 2 {
+		t.Fatalf("route has too few points: %+v", route)
+	}
+	first, last := route.Points[0], route.Points[len(route.Points)-1]
+	if route.SourceSide == East || route.SourceSide == West {
+		sourceAnchorY := source.Y + route.SourceAnchor.Y*source.Height
+		if first.Y != sourceAnchorY {
+			t.Fatalf("source anchor is not lane-aligned: %+v", route)
+		}
+	} else {
+		sourceAnchorX := source.X + route.SourceAnchor.X*source.Width
+		if first.X != sourceAnchorX {
+			t.Fatalf("source anchor is not lane-aligned: %+v", route)
+		}
+	}
+	if route.TargetSide == East || route.TargetSide == West {
+		targetAnchorY := target.Y + route.TargetAnchor.Y*target.Height
+		if last.Y != targetAnchorY {
+			t.Fatalf("target anchor is not lane-aligned: %+v", route)
+		}
+	} else {
+		targetAnchorX := target.X + route.TargetAnchor.X*target.Width
+		if last.X != targetAnchorX {
+			t.Fatalf("target anchor is not lane-aligned: %+v", route)
+		}
+	}
 }
 
 func min(a, b float64) float64 {
