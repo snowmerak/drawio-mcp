@@ -1,6 +1,7 @@
 package catalog_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/snowmerak/drawio-mcp/internal/catalog"
@@ -25,5 +26,16 @@ func TestLoadEmbeddedCatalog(t *testing.T) {
 	results := c.Find("golang", "saturday", "", nil, 10)
 	if len(results) == 0 || results[0].ID != "saturday.golang" {
 		t.Fatalf("unexpected search results: %+v", results)
+	}
+
+	cloudflare, ok := c.Get("cloudflare.wrangler")
+	if !ok {
+		t.Fatal("cloudflare.wrangler is missing")
+	}
+	if strings.Contains(cloudflare.Style, ";base64,") {
+		t.Fatalf("Cloudflare image contains an mxGraph style delimiter: %q", cloudflare.Style)
+	}
+	if !strings.Contains(cloudflare.Style, "image=data:image/svg+xml,PHN2") {
+		t.Fatalf("Cloudflare image was not normalized: %q", cloudflare.Style)
 	}
 }

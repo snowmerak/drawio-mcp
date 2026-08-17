@@ -129,7 +129,7 @@ func loadLibrary(fsys fs.FS, path string) ([]Shape, error) {
 
 		switch {
 		case item.Data != "":
-			shape.Style = "shape=image;verticalLabelPosition=bottom;verticalAlign=top;imageAspect=0;aspect=fixed;image=" + item.Data
+			shape.Style = "shape=image;verticalLabelPosition=bottom;verticalAlign=top;imageAspect=0;aspect=fixed;image=" + normalizeImageData(item.Data)
 		case item.XML != "":
 			style, value, width, height, err := extractLibraryCell(item.XML)
 			if err != nil {
@@ -148,6 +148,12 @@ func loadLibrary(fsys fs.FS, path string) ([]Shape, error) {
 		result = append(result, shape)
 	}
 	return result, nil
+}
+
+// normalizeImageData removes the base64 marker because semicolons delimit
+// mxGraph style properties. draw.io recognizes the marker-less base64 form.
+func normalizeImageData(data string) string {
+	return strings.Replace(data, ";base64,", ",", 1)
 }
 
 func extractLibraryCell(data string) (string, string, float64, float64, error) {
