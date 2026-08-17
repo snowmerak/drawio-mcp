@@ -1,0 +1,17 @@
+package catalog
+
+var defaultShapes = []Shape{
+	{ID: "default.rectangle", Name: "Rectangle", Description: "Basic rectangular box", Tags: []string{"default", "rectangle", "box"}, Category: "general", Source: "default", Width: 120, Height: 60, Style: "whiteSpace=wrap;html=1;"},
+	{ID: "default.rounded-rectangle", Name: "Rounded Rectangle", Description: "Rectangle with rounded corners", Tags: []string{"default", "rectangle", "rounded", "box"}, Category: "general", Source: "default", Width: 120, Height: 60, Style: "rounded=1;whiteSpace=wrap;html=1;"},
+	{ID: "default.ellipse", Name: "Ellipse", Description: "Ellipse or circle", Tags: []string{"default", "ellipse", "circle", "oval"}, Category: "general", Source: "default", Width: 80, Height: 80, Style: "ellipse;whiteSpace=wrap;html=1;"},
+	{ID: "default.diamond", Name: "Diamond", Description: "Decision diamond", Tags: []string{"default", "diamond", "decision", "flowchart"}, Category: "general", Source: "default", Width: 80, Height: 80, Style: "rhombus;whiteSpace=wrap;html=1;"},
+	{ID: "default.triangle", Name: "Triangle", Description: "Triangle", Tags: []string{"default", "triangle"}, Category: "general", Source: "default", Width: 80, Height: 80, Style: "triangle;whiteSpace=wrap;html=1;"},
+	{ID: "default.hexagon", Name: "Hexagon", Description: "Hexagonal shape", Tags: []string{"default", "hexagon"}, Category: "general", Source: "default", Width: 100, Height: 80, Style: "shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;"},
+	{ID: "default.parallelogram", Name: "Parallelogram", Description: "Input/output parallelogram", Tags: []string{"default", "parallelogram", "input", "output", "flowchart"}, Category: "general", Source: "default", Width: 120, Height: 60, Style: "shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;"},
+	{ID: "default.cylinder", Name: "Cylinder", Description: "Database cylinder", Tags: []string{"default", "cylinder", "database", "storage"}, Category: "general", Source: "default", Width: 80, Height: 100, Style: "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;"},
+	{ID: "default.cloud", Name: "Cloud", Description: "Cloud shape", Tags: []string{"default", "cloud", "network", "internet"}, Category: "general", Source: "default", Width: 120, Height: 80, Style: "ellipse;shape=cloud;whiteSpace=wrap;html=1;"},
+	{ID: "default.actor", Name: "Actor", Description: "UML actor", Tags: []string{"default", "actor", "person", "uml"}, Category: "general", Source: "default", Width: 40, Height: 80, Style: "shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;"},
+	{ID: "default.note", Name: "Note", Description: "Folded-corner note", Tags: []string{"default", "note", "document"}, Category: "general", Source: "default", Width: 100, Height: 80, Style: "shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=15;"},
+	{ID: "default.document", Name: "Document", Description: "Document with a wavy bottom", Tags: []string{"default", "document", "file", "flowchart"}, Category: "general", Source: "default", Width: 100, Height: 80, Style: "shape=document;whiteSpace=wrap;html=1;boundedLbl=1;"},
+	{ID: "default.process", Name: "Process", Description: "Flowchart process", Tags: []string{"default", "process", "flowchart"}, Category: "general", Source: "default", Width: 120, Height: 60, Style: "shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;"},
+}
