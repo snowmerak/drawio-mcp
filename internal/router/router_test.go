@@ -28,6 +28,38 @@ func TestSameDirectionRoutesShareLanes(t *testing.T) {
 	assertLaneAlignedAnchors(t, result.Routes[0], source, target)
 }
 
+func TestExclusiveRouteDoesNotShareSameDirectionLanes(t *testing.T) {
+	source := Rect{X: 0, Y: 0, Width: 40, Height: 40}
+	target := Rect{X: 240, Y: 0, Width: 40, Height: 40}
+	result, err := Solve(Problem{
+		Obstacles: []Rect{source, target},
+		Requests: []Request{
+			{ID: "labeled", SourceID: "a", TargetID: "b", SourceRect: source, TargetRect: target, Exclusive: true},
+			{ID: "plain", SourceID: "a", TargetID: "b", SourceRect: source, TargetRect: target},
+		},
+		Options: Options{GridSize: 20, Clearance: 20},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.SharedLanes != 0 || routesShareLane(result.Routes[0], result.Routes[1]) {
+		t.Fatalf("exclusive route shared a lane: %+v", result)
+	}
+
+	restored, err := Solve(Problem{
+		Obstacles: []Rect{source, target},
+		Requests:  []Request{{ID: "later", SourceID: "a", TargetID: "b", SourceRect: source, TargetRect: target}},
+		Reserved:  []ReservedRoute{{ID: "labeled", LaneIDs: result.Routes[0].LaneIDs, Exclusive: true}},
+		Options:   Options{GridSize: 20, Clearance: 20},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if routesShareLane(result.Routes[0], restored.Routes[0]) {
+		t.Fatalf("route shared a restored exclusive lane: first=%+v later=%+v", result.Routes[0], restored.Routes[0])
+	}
+}
+
 func TestOppositeDirectionCannotReserveSameLane(t *testing.T) {
 	source := Rect{X: 0, Y: 0, Width: 40, Height: 40}
 	target := Rect{X: 240, Y: 0, Width: 40, Height: 40}
@@ -109,6 +141,19 @@ func modelSegmentCrosses(a, b Point, obstacle Rect) bool {
 func contains(values []string, wanted string) bool {
 	for _, value := range values {
 		if value == wanted {
+			return true
+		}
+	}
+	return false
+}
+
+func routesShareLane(a, b Route) bool {
+	lanes := make(map[string]bool, len(a.LaneIDs))
+	for _, lane := range a.LaneIDs {
+		lanes[lane] = true
+	}
+	for _, lane := range b.LaneIDs {
+		if lanes[lane] {
 			return true
 		}
 	}

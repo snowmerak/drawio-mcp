@@ -38,11 +38,15 @@ type Request struct {
 	TargetID   string
 	SourceRect Rect
 	TargetRect Rect
+	// Exclusive requires every lane in this route to be unused and reserves it
+	// against later routes. drawio-mcp uses this for labeled edges.
+	Exclusive bool
 }
 
 type ReservedRoute struct {
-	ID      string
-	LaneIDs []string
+	ID        string
+	LaneIDs   []string
+	Exclusive bool
 }
 
 type Options struct {
@@ -103,6 +107,7 @@ type laneKey struct {
 type laneUsage struct {
 	direction int8
 	edgeIDs   []string
+	exclusive bool
 }
 
 type occupancy struct {
@@ -180,6 +185,7 @@ func Solve(problem Problem) (Result, error) {
 				usage.lanes[key] = entry
 			}
 			entry.edgeIDs = appendUnique(entry.edgeIDs, reserved.ID)
+			entry.exclusive = entry.exclusive || reserved.Exclusive
 		}
 	}
 
@@ -215,7 +221,7 @@ func Solve(problem Problem) (Result, error) {
 			newRouteLanes[key] = true
 			entry := usage.lanes[key]
 			if entry == nil {
-				entry = &laneUsage{direction: orientation}
+				entry = &laneUsage{direction: orientation, exclusive: request.Exclusive}
 				usage.lanes[key] = entry
 			}
 			entry.edgeIDs = appendUnique(entry.edgeIDs, request.ID)
@@ -342,7 +348,7 @@ func (g *grid) route(request Request, usage *occupancy) (candidate, error) {
 			if g.blockedPoint(target.point) || source.point == target.point {
 				continue
 			}
-			points, cost, finalDirection, ok := g.aStar(source, target, usage)
+			points, cost, finalDirection, ok := g.aStar(source, target, usage, request.Exclusive)
 			if !ok {
 				continue
 			}
@@ -412,7 +418,7 @@ func (q *priorityQueue) Pop() any {
 	return item
 }
 
-func (g *grid) aStar(source, target port, usage *occupancy) ([]gridPoint, int, direction, bool) {
+func (g *grid) aStar(source, target port, usage *occupancy, exclusive bool) ([]gridPoint, int, direction, bool) {
 	start := searchState{point: source.point, dir: source.dir}
 	queue := &priorityQueue{}
 	heap.Init(queue)
@@ -443,7 +449,7 @@ func (g *grid) aStar(source, target port, usage *occupancy) ([]gridPoint, int, d
 			key, orientation := makeLane(item.state.point, nextPoint)
 			stepCost := g.options.newLaneCost
 			if occupied := usage.lanes[key]; occupied != nil {
-				if occupied.direction != orientation {
+				if occupied.direction != orientation || occupied.exclusive || exclusive {
 					continue
 				}
 				stepCost = g.options.sharedLaneCost

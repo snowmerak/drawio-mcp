@@ -131,8 +131,8 @@ func TestMCPToolsAreCallable(t *testing.T) {
 		Arguments: map[string]any{
 			"document_id": documentID, "page": pageID, "grid_size": 20,
 			"connections": []map[string]any{
-				{"source_id": sourceCellID, "target_id": targetCellID, "label": "one"},
-				{"source_id": sourceCellID, "target_id": targetCellID, "label": "two"},
+				{"source_id": sourceCellID, "target_id": targetCellID},
+				{"source_id": sourceCellID, "target_id": targetCellID},
 			},
 		},
 	})

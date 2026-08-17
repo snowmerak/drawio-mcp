@@ -114,6 +114,7 @@ func (d *Document) RouteEdges(pageRef string, connections []RouteConnection, opt
 		requests[i] = router.Request{
 			ID: edgeID, SourceID: connection.SourceID, TargetID: connection.TargetID,
 			SourceRect: routerRect(sourceBounds), TargetRect: routerRect(targetBounds),
+			Exclusive: strings.TrimSpace(connection.Label) != "",
 		}
 	}
 
@@ -128,7 +129,9 @@ func (d *Document) RouteEdges(pageRef string, connections []RouteConnection, opt
 		}
 		lanes := splitNonEmpty(cell.node.attr("drawioMcpLanes"), "|")
 		if len(lanes) > 0 {
-			reserved = append(reserved, router.ReservedRoute{ID: cell.id, LaneIDs: lanes})
+			reserved = append(reserved, router.ReservedRoute{
+				ID: cell.id, LaneIDs: lanes, Exclusive: strings.TrimSpace(cell.label) != "",
+			})
 		}
 	}
 

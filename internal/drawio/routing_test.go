@@ -22,8 +22,8 @@ func TestRouteEdgesSharesAndRestoresLaneOccupancy(t *testing.T) {
 	}
 
 	first, err := doc.RouteEdges("", []drawio.RouteConnection{
-		{SourceID: source.ID, TargetID: target.ID, Label: "first"},
-		{SourceID: source.ID, TargetID: target.ID, Label: "second"},
+		{SourceID: source.ID, TargetID: target.ID},
+		{SourceID: source.ID, TargetID: target.ID},
 	}, drawio.RouteOptions{GridSize: 20, Clearance: 20})
 	if err != nil {
 		t.Fatal(err)
@@ -47,7 +47,7 @@ func TestRouteEdgesSharesAndRestoresLaneOccupancy(t *testing.T) {
 		t.Fatal(err)
 	}
 	third, err := reopened.RouteEdges("", []drawio.RouteConnection{{
-		SourceID: source.ID, TargetID: target.ID, Label: "third",
+		SourceID: source.ID, TargetID: target.ID,
 	}}, drawio.RouteOptions{GridSize: 20, Clearance: 20})
 	if err != nil {
 		t.Fatal(err)
@@ -67,6 +67,41 @@ func TestRouteEdgesSharesAndRestoresLaneOccupancy(t *testing.T) {
 	}
 	if len(inspected.Edges) != 3 {
 		t.Fatalf("routed edge count = %d, want 3", len(inspected.Edges))
+	}
+}
+
+func TestRouteEdgesLabeledConnectionsUseExclusiveLanes(t *testing.T) {
+	doc := drawio.New("Labels", "Page-1", "")
+	shape := catalog.Shape{ID: "test.box", Name: "Box", Width: 40, Height: 40, Style: "whiteSpace=wrap;html=1;"}
+	source, _ := doc.Place("", shape, 0, 0, 40, 40, "Source")
+	target, _ := doc.Place("", shape, 240, 0, 40, 40, "Target")
+	labeled, err := doc.RouteEdges("", []drawio.RouteConnection{
+		{SourceID: source.ID, TargetID: target.ID, Label: "request"},
+		{SourceID: source.ID, TargetID: target.ID, Label: "forward"},
+	}, drawio.RouteOptions{GridSize: 20, Clearance: 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if labeled.SharedLanes != 0 || routedEdgesShareLane(labeled.Edges[0], labeled.Edges[1]) {
+		t.Fatalf("labeled edges shared lanes: %+v", labeled)
+	}
+
+	path := filepath.Join(t.TempDir(), "labeled.drawio")
+	if err := doc.Save(path); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := drawio.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	later, err := reopened.RouteEdges("", []drawio.RouteConnection{{SourceID: source.ID, TargetID: target.ID}}, drawio.RouteOptions{GridSize: 20, Clearance: 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, edge := range labeled.Edges {
+		if routedEdgesShareLane(edge, later.Edges[0]) {
+			t.Fatalf("later edge shared restored labeled lanes: labeled=%+v later=%+v", edge, later.Edges[0])
+		}
 	}
 }
 
@@ -133,6 +168,19 @@ func splitLaneDirection(lane string) (string, string) {
 func containsString(values []string, wanted string) bool {
 	for _, value := range values {
 		if value == wanted {
+			return true
+		}
+	}
+	return false
+}
+
+func routedEdgesShareLane(a, b drawio.RoutedEdge) bool {
+	lanes := make(map[string]bool, len(a.Lanes))
+	for _, lane := range a.Lanes {
+		lanes[lane] = true
+	}
+	for _, lane := range b.Lanes {
+		if lanes[lane] {
 			return true
 		}
 	}

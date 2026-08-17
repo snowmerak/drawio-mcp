@@ -149,9 +149,9 @@ For local development, clients that support a working-directory setting can run 
 }
 ```
 
-Each empty lane can be occupied once per direction. Additional edges may share it only in that same direction; an edge traveling in the opposite direction must find another lane. Routed lane IDs are stored on the edge so later calls restore their occupancy. If any connection cannot be routed, no edge from the batch is added.
+Each empty lane can be occupied once per direction. Unlabeled edges may share it only in that same direction; an edge traveling in the opposite direction must find another lane. An edge with a non-empty label reserves its entire route exclusively, so no other edge may share those lane segments in either direction. Routed lane IDs and labeled-edge exclusivity are restored from saved edges on later calls. If any connection cannot be routed, no edge from the batch is added.
 
-Label-aware routing is a planned improvement. The current router avoids shape bounds but does not reserve the visual area occupied by edge labels, so a shared lane can pass through another edge's label. A future version should reserve label-sized lane intervals in both directions, prefer an adjacent lane for other edges, and offset each label from its own polyline.
+Whole-route exclusivity is intentionally conservative. A future refinement can estimate the label bounds, reserve only the affected lane interval, avoid perpendicular crossings through that interval, and offset the label from its own polyline.
 
 ## Generate the example through MCP
 

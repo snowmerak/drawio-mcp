@@ -134,8 +134,8 @@ func main() {
 		"grid_size":   20,
 		"clearance":   20,
 	}, &routed)
-	if len(routed.Edges) != len(connections) || routed.SharedLanes == 0 {
-		log.Fatalf("route_edges did not create shared lanes: %+v", routed)
+	if len(routed.Edges) != len(connections) {
+		log.Fatalf("route_edges returned an incomplete batch: %+v", routed)
 	}
 
 	call(ctx, session, "save_diagram", map[string]any{

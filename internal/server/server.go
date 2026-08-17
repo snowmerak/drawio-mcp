@@ -29,7 +29,7 @@ func New(shapeCatalog *catalog.Catalog) *mcp.Server {
 	mcp.AddTool(server, &mcp.Tool{Name: "delete_shape", Description: "Delete a shape, its descendants, and connected edges."}, service.deleteShape)
 	mcp.AddTool(server, &mcp.Tool{Name: "inspect_diagram", Description: "Inspect the pages and placed vertices in an open draw.io document."}, service.inspectDiagram)
 	mcp.AddTool(server, &mcp.Tool{Name: "inspect_region", Description: "Return shapes in a rectangular page region and optionally their connected or crossing edges."}, service.inspectRegion)
-	mcp.AddTool(server, &mcp.Tool{Name: "route_edges", Description: "Automatically create orthogonal edges on directed grid lanes; same-direction edges may share lanes and opposite-direction edges may not."}, service.routeEdges)
+	mcp.AddTool(server, &mcp.Tool{Name: "route_edges", Description: "Automatically create orthogonal edges on directed grid lanes; unlabeled same-direction edges may share lanes, while labeled edges reserve their routes exclusively."}, service.routeEdges)
 	return server
 }
 
