@@ -6,15 +6,15 @@ The server is self-contained: the libraries in `template/*.xml` are compiled int
 
 ## Tools
 
-- `list_shapes` — list shapes and filter by source, category, or tags
-- `find_shapes` — search shape IDs, names, descriptions, and tags
-- `create_diagram` — create an in-memory draw.io document
-- `open_diagram` — open compressed or uncompressed draw.io XML
-- `save_diagram` — save an open document
-- `place_shape` — place a shape using its catalog ID and default or explicit dimensions
-- `inspect_diagram` — inspect pages and vertex cells
-- `inspect_region` — inspect nodes and relevant edges inside a page rectangle
-- `route_edges` — automatically route directed orthogonal edges on shareable grid lanes
+- `list_shapes` - list shapes and filter by source, category, or tags
+- `find_shapes` - search shape IDs, names, descriptions, and tags
+- `create_diagram` - create an in-memory draw.io document
+- `open_diagram` - open compressed or uncompressed draw.io XML
+- `save_diagram` - save an open document
+- `place_shape` - place a shape using its catalog ID and default or explicit dimensions
+- `inspect_diagram` - inspect pages and vertex cells
+- `inspect_region` - inspect nodes and relevant edges inside a page rectangle
+- `route_edges` - automatically route directed orthogonal edges on shareable grid lanes
 
 Bundled IDs are stable and namespaced, for example `default.rectangle`, `saturday.golang`, and `cloudflare.wrangler`.
 
@@ -26,6 +26,12 @@ go build -o drawio-mcp ./cmd/drawio-mcp
 ./drawio-mcp
 ```
 
+Run the current checkout without building a binary first:
+
+```sh
+go run ./cmd/drawio-mcp
+```
+
 The process uses MCP over stdio, so stdout is reserved for protocol messages.
 
 Example client configuration:
@@ -35,6 +41,62 @@ Example client configuration:
   "mcpServers": {
     "drawio": {
       "command": "/absolute/path/to/drawio-mcp"
+    }
+  }
+}
+```
+
+## MCP registration with Go
+
+Run the latest published version directly. `go run` downloads the module into the Go build cache and starts the MCP server without installing a command into `PATH`:
+
+```json
+{
+  "mcpServers": {
+    "drawio": {
+      "command": "go",
+      "args": [
+        "run",
+        "github.com/snowmerak/drawio-mcp/cmd/drawio-mcp@latest"
+      ]
+    }
+  }
+}
+```
+
+The equivalent shell command is:
+
+```sh
+go run github.com/snowmerak/drawio-mcp/cmd/drawio-mcp@latest
+```
+
+To install a reusable executable instead:
+
+```sh
+go install github.com/snowmerak/drawio-mcp/cmd/drawio-mcp@latest
+```
+
+After ensuring `$(go env GOPATH)/bin` is in `PATH`, register the installed command:
+
+```json
+{
+  "mcpServers": {
+    "drawio": {
+      "command": "drawio-mcp"
+    }
+  }
+}
+```
+
+For local development, clients that support a working-directory setting can run the current checkout:
+
+```json
+{
+  "mcpServers": {
+    "drawio-local": {
+      "command": "go",
+      "args": ["run", "./cmd/drawio-mcp"],
+      "cwd": "/absolute/path/to/drawio-mcp"
     }
   }
 }
